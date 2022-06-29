@@ -21,12 +21,12 @@
     },
 	"autoload": {
 		"psr-4": {
-			"phste\\HtmlDiff\\": "src"
+			"Ssddanbrown\\HtmlDiff\\": "src"
 		}
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"phste\\HtmlDiff\\Tests\\": "tests"
+			"Ssddanbrown\\HtmlDiff\\Tests\\": "tests"
 		}
 	},
 	"scripts": {
