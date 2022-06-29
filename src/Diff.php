@@ -80,6 +80,11 @@ class Diff
     private $blockExpressions = [];
 
     /**
+     * @var Operation[]
+     */
+    private $preparedOperations = [];
+
+    /**
      * Defines how to compare repeating words. Valid values are from 0 to 1. This value allows to exclude
      * some words from comparison that eventually reduces the total time of the diff algorithm. 0 means
      * that all words are excluded so the diff will not find any matching words at all. 1 (default value)
@@ -120,6 +125,17 @@ class Diff
     }
 
     /**
+     * Diffs the input and prepares everything for rendering to HTML
+     */
+    public function prepare()
+    {
+        $this->splitInputIntoWords();
+
+        $this->matchGranularity = min($this->matchGranularityMaximum, min(count($this->oldWords), count($this->newWords)));
+        $this->preparedOperations = $this->operations();
+    }
+
+    /**
      * Builds the HTML diff output returning the diff HTML.
      */
     public function build(): string
@@ -128,14 +144,22 @@ class Diff
             return $this->newText;
         }
 
-        $this->splitInputIntoWords();
+        $this->prepare();
 
-        $this->matchGranularity = min($this->matchGranularityMaximum, min(count($this->oldWords), count($this->newWords)));
+        return $this->render();
+    }
 
-        $operations = $this->operations();
+    /**
+     * Renders the diff HTML.
+     * Based on the RenderMode insertions or deletions can be omitted.
+     * @param $renderMode
+     * @return string
+     */
+    public function render($renderMode = RenderMode::ALL): string {
+        $this->content = '';
 
-        foreach ($operations as $item) {
-            $this->performOperation($item);
+        foreach ($this->preparedOperations as $item) {
+            $this->performOperation($item, $renderMode);
         }
 
         return $this->content;
@@ -161,8 +185,10 @@ class Diff
         $this->newText = "";
     }
 
-    private function performOperation(Operation $operation): void
+    private function performOperation(Operation $operation, $renderMode = RenderMode::ALL): void
     {
+        if ($renderMode == RenderMode::DELETIONS && $operation->action == Action::INSERT) return;
+        if ($renderMode == RenderMode::INSERTIONS && $operation->action == Action::DELETE) return;
         switch ($operation->action) {
             case Action::EQUAL:
                 $this->processEqualOperation($operation);
@@ -176,15 +202,15 @@ class Diff
             case Action::NONE:
                 break;
             case Action::REPLACE:
-                $this->processReplaceOperation($operation);
+                $this->processReplaceOperation($operation, $renderMode);
                 break;
         }
     }
 
-    private function processReplaceOperation(Operation $operation): void
+    private function processReplaceOperation(Operation $operation, $renderMode): void
     {
-        $this->processDeleteOperation($operation, "diffmod");
-        $this->processInsertOperation($operation, "diffmod");
+        if ($renderMode !== RenderMode::INSERTIONS) $this->processDeleteOperation($operation, "diffmod");
+        if ($renderMode !== RenderMode::DELETIONS) $this->processInsertOperation($operation, "diffmod");
     }
 
     private function processInsertOperation(Operation $operation, string $cssClass): void
